@@ -65,6 +65,8 @@ type ChainConfig struct {
 }
 
 type NetworkConfig struct {
+	EDREnabled bool
+
 	L1Config ChainConfig
 
 	L2StartingPort uint64
@@ -97,6 +99,9 @@ type Chain interface {
 
 func GetDefaultNetworkConfig(startingTimestamp uint64, logsDirectory string) NetworkConfig {
 	return NetworkConfig{
+		// EDR disabled by default
+		EDREnabled: false,
+
 		// Enabled by default as it is included in genesis
 		InteropEnabled: true,
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum-optimism/supersim/anvil"
 	"github.com/ethereum-optimism/supersim/config"
+	"github.com/ethereum-optimism/supersim/edr"
 	"github.com/ethereum-optimism/supersim/interop"
 	opsimulator "github.com/ethereum-optimism/supersim/opsimulator"
 
@@ -33,23 +34,32 @@ type Orchestrator struct {
 
 func NewOrchestrator(log log.Logger, closeApp context.CancelCauseFunc, networkConfig *config.NetworkConfig) (*Orchestrator, error) {
 	// Spin up L1 anvil instance
-	l1Anvil := anvil.New(log, closeApp, &networkConfig.L1Config)
+	var l1Chain config.Chain
+	if networkConfig.EDREnabled {
+		l1Chain = edr.New(log, closeApp, &networkConfig.L1Config)
+	} else {
+		l1Chain = anvil.New(log, closeApp, &networkConfig.L1Config)
+	}
 
 	// Spin up L2 anvil instances
-	nextL2Port := networkConfig.L2StartingPort
-	l2Anvils, l2OpSims := make(map[uint64]config.Chain), make(map[uint64]*opsimulator.OpSimulator)
+	edrNextLnextL2Port := networkConfig.L2StartingPort
+	
+	l2Node, l2OpSims := make(map[uint64]config.Chain), make(map[uint64]*opsimulator.OpSimulator)
 	for i := range networkConfig.L2Configs {
 		cfg := networkConfig.L2Configs[i]
-		cfg.Port = 0 // explicitly set to zero as this anvil sits behind a proxy
 
-		l2Anvil := anvil.New(log, closeApp, &cfg)
-		l2Anvils[cfg.ChainID] = l2Anvil
+		if networkConfig.EDREnabled {
+			l2Node[cfg.ChainID] = edr.New(log, closeApp, &cfg)
+		} else {
+			cfg.Port = 0 // explicitly set to zero as this anvil sits behind a proxy
+			l2Node[cfg.ChainID] = anvil.New(log, closeApp, &cfg)
+		}
 	}
 
 	// Sping up OpSim to fornt the L2 instances
 	for i := range networkConfig.L2Configs {
 		cfg := networkConfig.L2Configs[i]
-		l2OpSims[cfg.ChainID] = opsimulator.New(log, closeApp, nextL2Port, l1Anvil, l2Anvils[cfg.ChainID], l2Anvils)
+		l2OpSims[cfg.ChainID] = opsimulator.New(log, closeApp, nextL2Port, l1Chain, l2Node[cfg.ChainID], l2Node)
 
 		// only increment expected port if it has been specified
 		if nextL2Port > 0 {
@@ -57,7 +67,7 @@ func NewOrchestrator(log log.Logger, closeApp context.CancelCauseFunc, networkCo
 		}
 	}
 
-	o := Orchestrator{log: log, config: networkConfig, l1Chain: l1Anvil, l2Chains: l2Anvils, l2OpSims: l2OpSims}
+	o := Orchestrator{log: log, config: networkConfig, l1Chain: l1Chain, l2Chains: l2Node, l2OpSims: l2OpSims}
 
 	// Interop Setup
 	if networkConfig.InteropEnabled {

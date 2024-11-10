@@ -20,6 +20,8 @@ const (
 	L1ForkHeightFlagName = "l1.fork.height"
 	L1PortFlagName       = "l1.port"
 
+	EDREnabledFlagName = "edr.enabled"
+
 	ChainsFlagName         = "chains"
 	NetworkFlagName        = "network"
 	L2StartingPortFlagName = "l2.starting.port"
@@ -64,6 +66,12 @@ func BaseCLIFlags(envPrefix string) []cli.Flag {
 			Value:   false,
 			Usage:   "Automatically relay messages sent to the L2ToL2CrossDomainMessenger using account 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
 			EnvVars: opservice.PrefixEnvVar(envPrefix, "INTEROP_AUTORELAY"),
+		},
+		&cli.BoolFlag{
+			Name:    EDREnabledFlagName,
+			Value:   false,
+			Usage:   "Enable External Data Retriever functionality",
+			EnvVars: opservice.PrefixEnvVar(envPrefix, "EDR_ENABLED"),
 		},
 		&cli.StringFlag{
 			Name:    LogsDirectoryFlagName,
@@ -116,6 +124,8 @@ type ForkCLIConfig struct {
 type CLIConfig struct {
 	AdminPort uint64
 
+	EDREnabled bool
+
 	L1Port         uint64
 	L2StartingPort uint64
 
@@ -134,6 +144,7 @@ func ReadCLIConfig(ctx *cli.Context) (*CLIConfig, error) {
 		L2StartingPort: ctx.Uint64(L2StartingPortFlagName),
 
 		InteropAutoRelay: ctx.Bool(InteropAutoRelayFlagName),
+		EDREnabled:       ctx.Bool(EDREnabledFlagName),
 
 		LogsDirectory: ctx.String(LogsDirectoryFlagName),
 	}
